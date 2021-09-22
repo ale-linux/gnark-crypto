@@ -194,10 +194,10 @@ func TestMulBy235(t *testing.T) {
 	v.C1.B2.Set(&c)
 
 	check.Mul(&u, &v)
-	u.MulBy245(&a, &b, &c)
+	u.MulBy235(&a, &b, &c)
 
 	if !check.Equal(&u) {
-		t.Fatal("error MulBy245")
+		t.Fatal("error MulBy235")
 	}
 }
 

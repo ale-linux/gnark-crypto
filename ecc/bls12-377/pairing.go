@@ -29,9 +29,31 @@ type lineEvaluation struct {
 	r2 fptower.E2
 }
 
+// mlStep the i-th ml step contains (f,q) where q=[i]Q, f=f_{i,Q}(P) where (f_{i,Q})=i(Q)-([i]Q)-(i-1)O
+type mlStep struct {
+	f GT
+	q []g2Proj
+}
+
+// evalLine evaluates the line through q, r at p, where q is on the twist
+func evalLine(l *lineEvaluation, q, r *g2Proj) {
+
+	var t fptower.E2
+
+	// compute line equation r0*x+r1*y+r2
+	t.Mul(&q.z, &r.y)
+	l.r0.Mul(&q.y, &r.z).Sub(&l.r0, &t)
+	t.Mul(&q.x, &r.z)
+	l.r1.Mul(&q.z, &r.x).Sub(&l.r1, &t)
+	t.Mul(&q.y, &r.x)
+	l.r2.Mul(&q.x, &r.y).Sub(&l.r2, &t)
+
+}
+
 // Pair calculates the reduced pairing for a set of points
 func Pair(P []G1Affine, Q []G2Affine) (GT, error) {
-	f, err := MillerLoop(P, Q)
+	//f, err := MillerLoop(P, Q)
+	f, err := MillerLoopSA(P, Q)
 	if err != nil {
 		return GT{}, err
 	}
@@ -93,6 +115,104 @@ func FinalExponentiation(z *GT, _z ...*GT) GT {
 	result.Mul(&result, &t[1])
 
 	return result
+}
+
+// MillerLoop Miller loop
+func MillerLoopSA(P []G1Affine, Q []G2Affine) (GT, error) {
+
+	// check input size match
+	n := len(P)
+	if n == 0 || n != len(Q) {
+		return GT{}, errors.New("invalid inputs sizes")
+	}
+
+	// filter infinity points
+	p := make([]G1Affine, 0, n)
+	q := make([]G2Affine, 0, n)
+
+	for k := 0; k < n; k++ {
+		if P[k].IsInfinity() || Q[k].IsInfinity() {
+			continue
+		}
+		p = append(p, P[k])
+		q = append(q, Q[k])
+	}
+
+	n = len(p)
+
+	// projective points for Q
+	qProj := make([]g2Proj, n)
+	for k := 0; k < n; k++ {
+		qProj[k].FromAffine(&q[k])
+	}
+
+	var result GT
+	result.SetOne()
+
+	var l lineEvaluation
+
+	fsquareStep := func() {
+		for k := 0; k < n; k++ {
+			qProj[k].DoubleStep(&l)
+			l.r0.MulByElement(&l.r0, &p[k].Y)
+			l.r1.MulByElement(&l.r1, &p[k].X)
+			result.MulBy034(&l.r0, &l.r1, &l.r2)
+		}
+	}
+
+	squareStep := func() {
+		result.Square(&result)
+		for k := 0; k < n; k++ {
+			qProj[k].DoubleStep(&l)
+			l.r0.MulByElement(&l.r0, &p[k].Y)
+			l.r1.MulByElement(&l.r1, &p[k].X)
+			result.MulBy034(&l.r0, &l.r1, &l.r2)
+		}
+	}
+
+	mulStep := func() {
+		for k := 0; k < n; k++ {
+			qProj[k].AddMixedStep(&l, &q[k])
+			l.r0.MulByElement(&l.r0, &p[k].Y)
+			l.r1.MulByElement(&l.r1, &p[k].X)
+			result.MulBy034(&l.r0, &l.r1, &l.r2)
+		}
+	}
+
+	nSquare := func(n int) {
+		for i := 0; i < n; i++ {
+			squareStep()
+		}
+	}
+
+	var ml33 mlStep
+	ml33.q = make([]g2Proj, n)
+	fsquareStep()
+	nSquare(4)
+	mulStep()
+	ml33.f.Set(&result)
+	copy(ml33.q, qProj)
+	nSquare(7)
+	result.Mul(&result, &ml33.f)
+
+	for k := 0; k < n; k++ {
+		evalLine(&l, &ml33.q[k], &qProj[k])
+		l.r0.MulByElement(&l.r0, &p[k].X)
+		l.r1.MulByElement(&l.r1, &p[k].Y)
+		result.MulBy235(&l.r1, &l.r0, &l.r2)
+		qProj[k].Add(&ml33.q[k], &qProj[k])
+	}
+
+	nSquare(4)
+	mulStep()
+	squareStep()
+	mulStep()
+
+	// remaining 46 bits
+	nSquare(46)
+	mulStep()
+
+	return result, nil
 }
 
 // MillerLoop Miller loop
@@ -203,6 +323,29 @@ func (p *g2Proj) DoubleStep(evaluations *lineEvaluation) {
 	evaluations.r1.Double(&J).
 		Add(&evaluations.r1, &J)
 	evaluations.r2.Set(&I)
+}
+
+// Add adds 2 points in projective coordinates
+func (p *g2Proj) Add(p1, p2 *g2Proj) *g2Proj {
+
+	var y1z2, x1z2, z1z2, u, uu, v, vv, vvv, R, A E2
+	y1z2.Mul(&p1.y, &p2.z)
+	x1z2.Mul(&p1.x, &p2.z)
+	z1z2.Mul(&p1.z, &p2.z)
+	u.Mul(&p2.y, &p1.z).Sub(&u, &y1z2)
+	uu.Square(&u)
+	v.Mul(&p2.x, &p1.z).Sub(&v, &x1z2)
+	vv.Square(&v)
+	vvv.Mul(&vv, &v)
+	R.Mul(&vv, &x1z2)
+	A.Mul(&uu, &z1z2).Sub(&A, &vvv).Sub(&A, &R).Sub(&A, &R)
+	p.x.Mul(&v, &A)
+	p.y.Sub(&R, &A).Mul(&p.y, &u)
+	uu.Mul(&vvv, &y1z2)
+	p.y.Sub(&p.y, &uu)
+	p.z.Mul(&vvv, &z1z2)
+	return p
+
 }
 
 // AddMixedStep point addition in Mixed Homogenous projective and Affine coordinates

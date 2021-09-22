@@ -42,9 +42,8 @@ func (z *E12) Expt(x *E12) *E12 {
 	return z
 }
 
-// 												  R1 R0   R2
 // MulBy235 multiplication by sparse element (0,0,c2,c3,0,c5)
-func (z *E12) MulBy245(c2, c3, c5 *E2) *E12 {
+func (z *E12) MulBy235(c2, c3, c5 *E2) *E12 {
 
 	var t1, t2 E2
 	var res E12

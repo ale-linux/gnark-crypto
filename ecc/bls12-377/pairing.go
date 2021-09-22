@@ -117,7 +117,7 @@ func FinalExponentiation(z *GT, _z ...*GT) GT {
 	return result
 }
 
-// MillerLoop Miller loop
+// MillerLoopSA Miller loop (short addition chain)
 func MillerLoopSA(P []G1Affine, Q []G2Affine) (GT, error) {
 
 	// check input size match

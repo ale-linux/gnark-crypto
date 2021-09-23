@@ -196,11 +196,10 @@ func MillerLoopSA(P []G1Affine, Q []G2Affine) (GT, error) {
 	result.Mul(&result, &ml33.f)
 
 	for k := 0; k < n; k++ {
-		evalLine(&l, &ml33.q[k], &qProj[k])
+		qProj[k].AddStep(&l, &ml33.q[k])
 		l.r0.MulByElement(&l.r0, &p[k].X)
 		l.r1.MulByElement(&l.r1, &p[k].Y)
-		result.MulBy235(&l.r1, &l.r0, &l.r2)
-		qProj[k].Add(&ml33.q[k], &qProj[k])
+		result.MulBy034(&l.r1, &l.r0, &l.r2)
 	}
 
 	nSquare(4)
@@ -326,15 +325,22 @@ func (p *g2Proj) DoubleStep(evaluations *lineEvaluation) {
 }
 
 // Add adds 2 points in projective coordinates
-func (p *g2Proj) Add(p1, p2 *g2Proj) *g2Proj {
+func (p *g2Proj) AddStep(evaluations *lineEvaluation, p1 *g2Proj) *g2Proj {
 
-	var y1z2, x1z2, z1z2, u, uu, v, vv, vvv, R, A E2
-	y1z2.Mul(&p1.y, &p2.z)
-	x1z2.Mul(&p1.x, &p2.z)
-	z1z2.Mul(&p1.z, &p2.z)
-	u.Mul(&p2.y, &p1.z).Sub(&u, &y1z2)
+	var y1z2, x1z2, z1z2, u, uu, v, vv, vvv, R, A, t E2
+	y1z2.Mul(&p1.y, &p.z)
+	x1z2.Mul(&p1.x, &p.z)
+	z1z2.Mul(&p1.z, &p.z)
+	evaluations.r2.Mul(&p1.x, &p.y)
+	t.Mul(&p1.y, &p.x)
+	evaluations.r2.Sub(&evaluations.r2, &t)
+	u.Mul(&p.y, &p1.z) //.Sub(&u, &y1z2)
+	evaluations.r0.Sub(&y1z2, &u)
+	u.Sub(&u, &y1z2)
 	uu.Square(&u)
-	v.Mul(&p2.x, &p1.z).Sub(&v, &x1z2)
+	v.Mul(&p.x, &p1.z) //.Sub(&v, &x1z2)
+	evaluations.r1.Sub(&v, &x1z2)
+	v.Sub(&v, &x1z2)
 	vv.Square(&v)
 	vvv.Mul(&vv, &v)
 	R.Mul(&vv, &x1z2)

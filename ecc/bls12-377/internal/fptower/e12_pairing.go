@@ -42,57 +42,6 @@ func (z *E12) Expt(x *E12) *E12 {
 	return z
 }
 
-// MulBy235 multiplication by sparse element (0,0,c2,c3,0,c5)
-func (z *E12) MulBy235(c2, c3, c5 *E2) *E12 {
-
-	var t1, t2 E2
-	var res E12
-
-	t1.Mul(c3, &z.C1.B1)
-	t2.Mul(c2, &z.C0.B2)
-	res.C0.B0.Mul(c5, &z.C1.B0).
-		Add(&res.C0.B0, &t1).
-		Add(&res.C0.B0, &t2).
-		MulByNonResidue(&res.C0.B0)
-
-	t1.Mul(c3, &z.C1.B2)
-	t2.Mul(c5, &z.C1.B1)
-	t1.Add(&t1, &t2).MulByNonResidue(&t1)
-	res.C0.B1.Mul(c2, &z.C0.B0).
-		Add(&res.C0.B1, &t1)
-
-	t1.Mul(c3, &z.C1.B0)
-	t2.Mul(c2, &z.C0.B1)
-	res.C0.B2.Mul(c5, &z.C1.B2).
-		MulByNonResidue(&res.C0.B2).
-		Add(&res.C0.B2, &t1).
-		Add(&res.C0.B2, &t2)
-
-	t1.Mul(c3, &z.C0.B2)
-	t2.Mul(c2, &z.C1.B2)
-	res.C1.B0.Mul(c5, &z.C0.B1).
-		Add(&res.C1.B0, &t1).
-		Add(&res.C1.B0, &t2).
-		MulByNonResidue(&res.C1.B0)
-
-	t1.Mul(c3, &z.C0.B0)
-	t2.Mul(c2, &z.C1.B0)
-	res.C1.B1.Mul(c5, &z.C0.B2).
-		MulByNonResidue(&res.C1.B1).
-		Add(&res.C1.B1, &t1).
-		Add(&res.C1.B1, &t2)
-
-	t1.Mul(c3, &z.C0.B1)
-	t2.Mul(c2, &z.C1.B1)
-	res.C1.B2.Mul(c5, &z.C0.B0).
-		Add(&res.C1.B2, &t1).
-		Add(&res.C1.B2, &t2)
-
-	z.Set(&res)
-
-	return z
-}
-
 // MulBy034 multiplication by sparse element (c0,0,0,c3,c4,0)
 func (z *E12) MulBy034(c0, c3, c4 *E2) *E12 {
 

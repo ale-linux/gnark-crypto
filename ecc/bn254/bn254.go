@@ -47,6 +47,8 @@ var loopCounterTate [255]int8
 var loopCounterOptTate0 [64]int8
 var loopCounterOptTate00 [128]int8
 var loopCounterOptTate1 [128]int8
+var loopCounterOptTateImproved0 [64]int8
+var loopCounterOptTateImproved1 [65]int8
 
 // Parameters useful for the GLV scalar multiplication. The third roots define the
 //  endomorphisms phi1 and phi2 for <G1Affine> and <G2Affine>. lambda is such that <r, phi-lambda> lies above
@@ -125,6 +127,14 @@ func init() {
 
 	// 2-NAF decomposition of 2*xGen+1 in little endian padded to 128 bits with 0s
 	loopCounterOptTate00 = [128]int8{-1, 0, 1, 0, 0, -1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, -1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0, -1, 0, -1, 0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 1, 0, -1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	// 2-NAF decomposition of 2*xGen in little endian
+	T, _ = new(big.Int).SetString("9931322734385697762", 10)
+	ecc.NafDecomposition(T, loopCounterOptTateImproved0[:])
+
+	// 2-NAF decomposition of 3*xGen+1 in little endian
+	T, _ = new(big.Int).SetString("14896984101578546644", 10)
+	ecc.NafDecomposition(T, loopCounterOptTateImproved1[:])
 
 	xGen.SetString("4965661367192848881", 10)
 

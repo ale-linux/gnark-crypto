@@ -127,7 +127,8 @@ func MillerLoop(P []G1Affine, Q []G2Affine) (GT, error) {
 	// f, err := MillerLoopOptAte(P, Q)
 	// f, err := MillerLoopTate(P, Q)
 	// f, err := MillerLoopOptTate(P, Q)
-	f, err := MillerLoopOptTateParallel(P, Q)
+	// f, err := MillerLoopOptTateParallel(P, Q)
+	f, err := MultiMillerLoopOptTateImproved(P, Q)
 
 	return f, err
 }
@@ -535,6 +536,129 @@ func MillerLoopOptTateParallel(P []G1Affine, Q []G2Affine) (GT, error) {
 	}
 
 	return result, nil
+}
+
+// MultiMillerLoopOptTateImproved Tate Miller loop
+func MultiMillerLoopOptTateImproved(P []G1Affine, Q []G2Affine) (GT, error) {
+	n := len(P)
+	if n == 0 || n != len(Q) {
+		return GT{}, errors.New("invalid inputs sizes")
+	}
+
+	// filter infinity points
+	p := make([]G1Affine, 0, n)
+	q := make([]G2Affine, 0, n)
+
+	for k := 0; k < n; k++ {
+		if P[k].IsInfinity() || Q[k].IsInfinity() {
+			continue
+		}
+		p = append(p, P[k])
+		q = append(q, Q[k])
+	}
+
+	n = len(p)
+
+	var f GT
+	f.SetOne()
+	for k := 0; k < n; k++ {
+		m, err := MillerLoopOptTateImproved(p[k], q[k])
+		if err != nil {
+			return GT{}, err
+		}
+		f.Mul(&f, &m)
+	}
+
+	return f, nil
+}
+
+// MillerLoopOptTateImproved Tate Miller loop
+func MillerLoopOptTateImproved(p G1Affine, q G2Affine) (GT, error) {
+
+	// projective points for Q
+	var pProj g1Proj
+	var pNeg, up G1Affine
+	pProj.FromAffine(&p)
+	pNeg.Neg(&p)
+
+	var m, mInv, mOld, f GT
+	m.SetOne()
+
+	var l, l0 lineEvaluation
+
+	// f_{2*u, P}(Q)
+	for i := len(loopCounterOptTateImproved0) - 2; i >= 0; i-- {
+		m.Square(&m)
+
+		pProj.DoubleStep(&l)
+		// line evaluation
+		l.r2.Mul(&l.r2, &q.Y)
+		l.r1.Mul(&l.r1, &q.X)
+		m.MulBy014(&l.r0, &l.r1, &l.r2)
+
+		if loopCounterOptTateImproved0[i] == 1 {
+			pProj.AddMixedStep(&l, &p)
+			// line evaluation
+			l.r2.Mul(&l.r2, &q.Y)
+			l.r1.Mul(&l.r1, &q.X)
+			m.MulBy014(&l.r0, &l.r1, &l.r2)
+
+		} else if loopCounterOptTateImproved0[i] == -1 {
+			pProj.AddMixedStep(&l, &pNeg)
+			// line evaluation
+			l.r2.Mul(&l.r2, &q.Y)
+			l.r1.Mul(&l.r1, &q.X)
+			m.MulBy014(&l.r0, &l.r1, &l.r2)
+		}
+	}
+
+	mInv.Inverse(&m)
+	mOld.Set(&m)
+	up.FromProjective(&pProj)
+
+	// l_{2*u*P, P}(Q)
+	var tmp g1Proj
+	tmp.Set(&pProj)
+	tmp.AddMixedStep(&l0, &p)
+	l0.r2.Mul(&l0.r2, &q.Y)
+	l0.r1.Mul(&l0.r1, &q.X)
+	m.MulBy014(&l0.r0, &l0.r1, &l0.r2)
+
+	// (m)_{3*u+1, [2*u]P}(Q)
+	f.Set(&mOld)
+	var t G1Affine
+	for i := len(loopCounterOptTateImproved1) - 2; i >= 0; i-- {
+		f.Square(&f)
+
+		pProj.DoubleStep(&l)
+		// line evaluation
+		l.r2.Mul(&l.r2, &q.Y)
+		l.r1.Mul(&l.r1, &q.X)
+		f.MulBy014(&l.r0, &l.r1, &l.r2)
+
+		if loopCounterOptTateImproved1[i] == 1 {
+			pProj.AddMixedStep(&l, &up)
+			// line evaluation
+			l.r2.Mul(&l.r2, &q.Y)
+			l.r1.Mul(&l.r1, &q.X)
+			f.MulBy014(&l.r0, &l.r1, &l.r2).
+				Mul(&f, &mOld)
+
+		} else if loopCounterOptTateImproved1[i] == -1 {
+			t.Neg(&up)
+			pProj.AddMixedStep(&l, &t)
+			// line evaluation
+			l.r2.Mul(&l.r2, &q.Y)
+			l.r1.Mul(&l.r1, &q.X)
+			f.MulBy014(&l.r0, &l.r1, &l.r2).
+				Mul(&f, &mInv)
+		}
+	}
+
+	f.FrobeniusSquare(&f).
+		Mul(&f, &m)
+
+	return f, nil
 }
 
 // DoubleStep doubles a point in Homogenous projective coordinates, and evaluates the line in Miller loop

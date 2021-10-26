@@ -45,6 +45,7 @@ var g2Infinity G2Jac
 var loopCounterOptAte [66]int8
 var loopCounterTate [255]int8
 var loopCounterOptTate0 [64]int8
+var loopCounterOptTate00 [128]int8
 var loopCounterOptTate1 [128]int8
 
 // Parameters useful for the GLV scalar multiplication. The third roots define the
@@ -121,6 +122,9 @@ func init() {
 	// 2-NAF decomposition of 6*xGen^2+2*xGen in little endian
 	T, _ = new(big.Int).SetString("147946756881789319000765030803803410728", 10)
 	ecc.NafDecomposition(T, loopCounterOptTate1[:])
+
+	// 2-NAF decomposition of 2*xGen+1 in little endian padded to 128 bits with 0s
+	loopCounterOptTate00 = [128]int8{-1, 0, 1, 0, 0, -1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, -1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0, -1, 0, -1, 0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 1, 0, -1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 	xGen.SetString("4965661367192848881", 10)
 

@@ -982,3 +982,48 @@ func (p *g1Proj) FromAffine(Q *G1Affine) *g1Proj {
 	p.y.Set(&Q.Y)
 	return p
 }
+
+// BatchProjectiveToAffineG1 converts points in Projective coordinates to Affine coordinates
+// performing a single field inversion (Montgomery batch inversion trick)
+// result must be allocated with len(result) == len(points)
+func BatchProjectiveToAffineG1(points []g1Proj, result []G1Affine) {
+	zeroes := make([]bool, len(points))
+	accumulator := fp.One()
+
+	// batch invert all points[].Z coordinates with Montgomery batch inversion trick
+	// (stores points[].Z^-1 in result[i].X to avoid allocating a slice of fr.Elements)
+	for i := 0; i < len(points); i++ {
+		if points[i].z.IsZero() {
+			zeroes[i] = true
+			continue
+		}
+		result[i].X = accumulator
+		accumulator.Mul(&accumulator, &points[i].z)
+	}
+
+	var accInverse fp.Element
+	accInverse.Inverse(&accumulator)
+
+	for i := len(points) - 1; i >= 0; i-- {
+		if zeroes[i] {
+			// do nothing, X and Y are zeroes in affine.
+			continue
+		}
+		result[i].X.Mul(&result[i].X, &accInverse)
+		accInverse.Mul(&accInverse, &points[i].z)
+	}
+
+	// batch convert to affine.
+	parallel.Execute(len(points), func(start, end int) {
+		for i := start; i < end; i++ {
+			if zeroes[i] {
+				// do nothing, X and Y are zeroes in affine.
+				continue
+			}
+			var a fp.Element
+			a = result[i].X
+			result[i].X.Mul(&points[i].x, &a)
+			result[i].Y.Mul(&points[i].y, &a)
+		}
+	})
+}

@@ -42,6 +42,11 @@ type g1JacExtended struct {
 	X, Y, ZZ, ZZZ fp.Element
 }
 
+// g1Proj point in projective coordinates
+type g1Proj struct {
+	x, y, z fp.Element
+}
+
 // -------------------------------------------------------------------------------------------------
 // Affine
 
@@ -934,4 +939,46 @@ func BatchScalarMultiplicationG1(base *G1Affine, scalars []fr.Element) []G1Affin
 	toReturnAff := make([]G1Affine, len(scalars))
 	BatchJacobianToAffineG1(toReturn, toReturnAff)
 	return toReturnAff
+}
+
+// -------------------------------------------------------------------------------------------------
+// Homogenous projective
+
+// Set sets p to the provided point
+func (p *g1Proj) Set(a *g1Proj) *g1Proj {
+	p.x, p.y, p.z = a.x, a.y, a.z
+	return p
+}
+
+// Neg computes -G
+func (p *g1Proj) Neg(a *g1Proj) *g1Proj {
+	*p = *a
+	p.y.Neg(&a.y)
+	return p
+}
+
+// FromJacobian converts a point from Jacobian to projective coordinates
+func (p *g1Proj) FromJacobian(Q *G1Jac) *g1Proj {
+	var buf fp.Element
+	buf.Square(&Q.Z)
+
+	p.x.Mul(&Q.X, &Q.Z)
+	p.y.Set(&Q.Y)
+	p.z.Mul(&Q.Z, &buf)
+
+	return p
+}
+
+// FromAffine sets p = Q, p in homogenous projective, Q in affine
+func (p *g1Proj) FromAffine(Q *G1Affine) *g1Proj {
+	if Q.X.IsZero() && Q.Y.IsZero() {
+		p.z.SetZero()
+		p.x.SetOne()
+		p.y.SetOne()
+		return p
+	}
+	p.z.SetOne()
+	p.x.Set(&Q.X)
+	p.y.Set(&Q.Y)
+	return p
 }

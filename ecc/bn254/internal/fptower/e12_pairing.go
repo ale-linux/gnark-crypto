@@ -121,3 +121,26 @@ func (z *E12) Mul034by034(d0, d3, d4, c0, c3, c4 *E2) *E12 {
 
 	return z
 }
+
+// MulBy014 multiplication by sparse element (c0, c1, 0, 0, c4)
+func (z *E12) MulBy014(c0, c1, c4 *E2) *E12 {
+
+	var a, b E6
+	var d E2
+
+	a.Set(&z.C0)
+	a.MulBy01(c0, c1)
+
+	b.Set(&z.C1)
+	b.MulBy1(c4)
+	d.Add(c1, c4)
+
+	z.C1.Add(&z.C1, &z.C0)
+	z.C1.MulBy01(c0, &d)
+	z.C1.Sub(&z.C1, &a)
+	z.C1.Sub(&z.C1, &b)
+	z.C0.MulByNonResidue(&b)
+	z.C0.Add(&z.C0, &a)
+
+	return z
+}

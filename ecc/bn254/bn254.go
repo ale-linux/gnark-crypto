@@ -41,8 +41,9 @@ var g2GenAff G2Affine
 var g1Infinity G1Jac
 var g2Infinity G2Jac
 
-// optimal Ate loop counter
-var loopCounter [66]int8
+// Miller loop counters
+var loopCounterOptAte [66]int8
+var loopCounterTate [255]int8
 
 // Parameters useful for the GLV scalar multiplication. The third roots define the
 //  endomorphisms phi1 and phi2 for <G1Affine> and <G2Affine>. lambda is such that <r, phi-lambda> lies above
@@ -103,9 +104,12 @@ func init() {
 	endo.v.A0.SetString("2821565182194536844548159561693502659359617185244120367078079554186484126554")
 	endo.v.A1.SetString("3505843767911556378687030309984248845540243509899259641013678093033130930403")
 
-	// binary decomposition of 15132376222941642752 little endian
-	optimaAteLoop, _ := new(big.Int).SetString("29793968203157093288", 10)
-	ecc.NafDecomposition(optimaAteLoop, loopCounter[:])
+	// 2-NAF decomposition of 6*xGen+2 in little endian
+	T, _ := new(big.Int).SetString("29793968203157093288", 10)
+	ecc.NafDecomposition(T, loopCounterOptAte[:])
+	// 2-NAF decomposition of r in little endian
+	T, _ = new(big.Int).SetString("21888242871839275222246405745257275088548364400416034343698204186575808495617", 10)
+	ecc.NafDecomposition(T, loopCounterTate[:])
 
 	xGen.SetString("4965661367192848881", 10)
 
